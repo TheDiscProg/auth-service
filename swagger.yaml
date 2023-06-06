@@ -1,0 +1,38 @@
+openapi: 3.0.0
+info:
+  description: "DAPEX Scala Template for Service"
+  version: 1.0.0
+  title: DAPEX Template API
+tags:
+  - name: healthcheck
+    description: Healthcheck API
+  - name: Auth
+    description: Authenticates User Endpoint
+
+paths:
+  /:
+    get:
+      tags:
+        - healthcheck
+      x-jvm-package: healthcheck
+      summary: healthcheck
+      description: healthcheck endpoint
+      operationId: healthcheck
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HealthResponse"
+
+components:
+  schemas:
+    HealthResponse:
+      type: object
+      properties:
+        serviceStatus:
+          type: string
+          enum: [ OK, BROKEN ]
+      required:
+        - serviceStatus
