@@ -12,7 +12,7 @@ object MainApp extends IOApp {
       .use { implicit logger: Logger[IO] =>
         AppServer
           .createServer[IO]()
-          .use(_ => IO.never)
+          .use(tuple => AppServer.processRMQMessages(tuple._2))
           .as(ExitCode.Success)
       }
 }

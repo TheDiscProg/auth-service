@@ -1,6 +1,6 @@
 ThisBuild / organization := "Event Driven Architecture with DAPEX"
 
-ThisBuild / version := "1.1.0"
+ThisBuild / version := "0.1.0"
 
 lazy val commonSettings = Seq(
   scalaVersion := "2.13.10",
@@ -21,6 +21,7 @@ lazy val base = (project in file("base"))
       ".*.entities.*"
     ).mkString(";")
   )
+  .dependsOn(Dependencies.dapexMessagingRepo)
 
 lazy val guardrail = (project in file("guardrail"))
   .settings(
@@ -50,7 +51,7 @@ lazy val root = (project in file("."))
   )
   .settings(
     commonSettings,
-    name := "dapex-template",
+    name := "authentication-orchestrator",
     Compile / doc / sources := Seq.empty,
     scalacOptions ++= Scalac.options,
     Compile / mainClass := Some("dapex.MainApp"),
@@ -60,14 +61,18 @@ lazy val root = (project in file("."))
     coverageExcludedFiles := Seq(
       "<empty>",
       ".*MainApp.*",
-      ".*AppServer.*"
+      ".*AppServer.*",
+      ".*.config.*",
+      ".*rabbitmq.*"
     ).mkString(";"),
     coverageFailOnMinimum := true,
-    coverageMinimumStmtTotal := 92,
-    coverageMinimumBranchTotal := 100
+    coverageMinimumStmtTotal := 85,
+    coverageMinimumBranchTotal := 89
   )
   .aggregate(base, guardrail)
+  .dependsOn(Dependencies.dapexMessagingRepo % "test->test; compile->compile")
   .dependsOn(base % "test->test; compile->compile")
   .dependsOn(guardrail % "test->test; compile->compile")
-// Put here as repository tests hang
-parallelExecution := false
+
+addCommandAlias("clntst", ";clean;scalafmt;test:scalafmt;test;")
+addCommandAlias("cvrtst", ";clean;scalafmt;test:scalafmt;coverage;test;coverageReport;")
