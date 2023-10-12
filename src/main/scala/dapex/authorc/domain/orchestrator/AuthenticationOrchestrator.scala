@@ -2,9 +2,10 @@ package dapex.authorc.domain.orchestrator
 import cats.Monad
 import cats.syntax.all._
 import dapex.authorc.domain.caching.AuthenticationCachingServiceAlgebra
-import dapex.authorc.domain.rabbitmq.publisher.DapexMQPublisherAlgebra
 import dapex.authorc.domain.security.{HashingServiceAlgebra, SecurityTokenServiceAlgebra}
 import dapex.messaging._
+import dapex.rabbitmq.RabbitQueue
+import dapex.rabbitmq.publisher.DapexMQPublisherAlgebra
 import org.typelevel.log4cats.Logger
 
 class AuthenticationOrchestrator[F[_]: Monad: Logger](
@@ -28,9 +29,10 @@ class AuthenticationOrchestrator[F[_]: Monad: Logger](
     val dbRequest = createDbRequest(msg, requestId, hashedPassword)
     val originalAuthRequest = replacePasswordWithHash(msg, hashedPassword)
     for {
+      _ <- Logger[F].info(s"AuthOrc: Request ID: $requestId")
       _ <- Logger[F].info(s"AuthOrc: Sending request to db: $dbRequest")
       _ <- cachingService.saveByRequestId(requestId, originalAuthRequest)
-      _ <- rmqPublisher.publishToDBReadQueue(dbRequest)
+      _ <- rmqPublisher.publishMessageToQueue(dbRequest, RabbitQueue.SERVICE_DBREAD_QUEUE)
     } yield ()
   }
 
@@ -94,9 +96,19 @@ class AuthenticationOrchestrator[F[_]: Monad: Logger](
       case (Some(gph), Some(sph)) =>
         if (gph.value == sph.value)
           cacheAndSendResponseToCollectionPoint(originalAuthRequest, dbResponse)
-        else
-          sendNotFoundResponseToCollectionPoint(originalAuthRequest, dbResponse)
-      case (_, _) => sendNotFoundResponseToCollectionPoint(originalAuthRequest, dbResponse)
+        else {
+          for {
+            _ <- Logger[F].info(s"AuthOrc: Original hash: $gph")
+            _ <- Logger[F].info(s"AuthOrc: DB Response hash: $sph")
+            _ <- sendNotFoundResponseToCollectionPoint(originalAuthRequest, dbResponse)
+          } yield ()
+        }
+      case (h1, h2) =>
+        for {
+          _ <- Logger[F].info(s"AuthOrc: Original hash: $h1")
+          _ <- Logger[F].info(s"AuthOrc: DB Response hash: $h2")
+          _ <- sendNotFoundResponseToCollectionPoint(originalAuthRequest, dbResponse)
+        } yield ()
     }
   }
 
@@ -123,7 +135,7 @@ class AuthenticationOrchestrator[F[_]: Monad: Logger](
       _ <- Logger[F].info(
         s"AuthOrc: No matching principal was found: ${originalAuthRequest.criteria.find(_.field == "username")}"
       )
-      _ <- rmqPublisher.publishToCollectionPointQueue(response)
+      _ <- rmqPublisher.publishMessageToQueue(response, RabbitQueue.SERVICE_COLLECTION_POINT_QUEUE)
     } yield ()
   }
 
@@ -144,7 +156,10 @@ class AuthenticationOrchestrator[F[_]: Monad: Logger](
         token <- securityTokenService.generateTokenFor(user).pure[F]
         _ <- cachingService.saveByToken(token, msgToSaveAndSend)
         response = createAuthenticatedResponse(token, msgToSaveAndSend)
-        _ <- rmqPublisher.publishToCollectionPointQueue(response)
+        _ <- rmqPublisher.publishMessageToQueue(
+          response,
+          RabbitQueue.SERVICE_COLLECTION_POINT_QUEUE
+        )
       } yield ()
     }
   }

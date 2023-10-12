@@ -11,10 +11,11 @@ import com.hazelcast.map.listener.{MapListener, MapPartitionLostListener}
 import com.hazelcast.projection.Projection
 import com.hazelcast.query.Predicate
 import dapex.authorc.domain.caching.{AuthenticationCachingServiceAlgebra, CachingMapsAlgebra}
-import dapex.authorc.domain.rabbitmq.publisher.DapexMQPublisherAlgebra
 import dapex.authorc.domain.security.{HashingServiceAlgebra, SecurityTokenServiceAlgebra}
 import dapex.config.ServerConfiguration
 import dapex.messaging._
+import dapex.rabbitmq.RabbitQueue
+import dapex.rabbitmq.publisher.DapexMQPublisherAlgebra
 import io.circe.config.parser
 
 import java.time.Instant
@@ -119,13 +120,7 @@ object TestObjects {
 
   class RMPPublisher[F[_]: Applicative](queue: util.Queue[DapexMessage])
       extends DapexMQPublisherAlgebra[F] {
-
-    override def publishToCollectionPointQueue(message: DapexMessage): F[Unit] = {
-      queue.add(message)
-      ().pure[F]
-    }
-
-    override def publishToDBReadQueue(message: DapexMessage): F[Unit] = {
+    override def publishMessageToQueue(message: DapexMessage, q: RabbitQueue): F[Unit] = {
       queue.add(message)
       ().pure[F]
     }

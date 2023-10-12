@@ -1,11 +1,11 @@
 package dapex.authorc.domain.caching.hcast
 
 import cats.effect.IO
+import dapex.authorc.fixtures.DefaultFutureSetting
 import dapex.authorc.fixtures.TestObjects.TestImap
 import dapex.messaging.DapexMessageFixture
 import dapex.messaging.Method.{RESPONSE, SELECT}
 import org.scalatest.OptionValues
-import org.scalatest.concurrent.ScalaFutures
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 import org.typelevel.log4cats.SelfAwareStructuredLogger
@@ -15,7 +15,7 @@ class AuthHzcMapsTest
     extends AnyFlatSpec
     with Matchers
     with OptionValues
-    with ScalaFutures
+    with DefaultFutureSetting
     with DapexMessageFixture {
 
   private implicit def unsafeLogger: SelfAwareStructuredLogger[IO] = Slf4jLogger.getLogger[IO]

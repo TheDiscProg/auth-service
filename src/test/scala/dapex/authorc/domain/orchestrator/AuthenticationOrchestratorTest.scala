@@ -3,7 +3,8 @@ package dapex.authorc.domain.orchestrator
 import cats.effect._
 import dapex.authorc.fixtures.TestObjects
 import dapex.messaging.Method.PROCESS
-import dapex.messaging.{Criterion, DapexMessage, DapexMessageFixture, Response}
+import dapex.messaging.{Criterion, DapexMessage, Response}
+import dapex.test.DapexMessageFixture
 import munit.CatsEffectSuite
 import org.scalatest.OptionValues
 import org.scalatest.matchers.should.Matchers

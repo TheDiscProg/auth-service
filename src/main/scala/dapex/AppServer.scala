@@ -4,29 +4,24 @@ import cats.Parallel
 import cats.data.NonEmptyList
 import cats.effect._
 import cats.effect.std.Dispatcher
-import cats.implicits._
 import com.comcast.ip4s._
 import dapex.authorc.domain.caching.AuthenticationCachingService
 import dapex.authorc.domain.caching.hcast.AuthHzcMaps
 import dapex.authorc.domain.orchestrator.AuthenticationOrchestrator
-import dapex.authorc.domain.rabbitmq.Rabbit
-import dapex.authorc.domain.rabbitmq.consumer.{
-  DapexMessageRouter,
-  DapexMessageRouterAlgebra,
-  RabbitDapexMessageConsumer
-}
-import dapex.authorc.domain.rabbitmq.publisher.DapexMQPublisher
+import dapex.authorc.domain.rmqconsumer.{RMQMessageHandler, RMQMessageRouter}
 import dapex.authorc.domain.security.{HashingService, JwtSecurityTokenService}
 import dapex.config.ServerConfiguration
 import dapex.guardrail.healthcheck.HealthcheckResource
+import dapex.rabbitmq.Rabbit
+import dapex.rabbitmq.consumer.DapexMessageHandler
+import dapex.rabbitmq.publisher.DapexMQPublisher
 import dapex.server.domain.healthcheck.{
   HealthCheckService,
   HealthChecker,
   HealthcheckAPIHandler,
   SelfHealthCheck
 }
-import dev.profunktor.fs2rabbit.effects.Log
-import dev.profunktor.fs2rabbit.resiliency.ResilientStream
+import dapex.server.entities.AppService
 import io.circe.config.parser
 import org.http4s.ember.server.EmberServerBuilder
 import org.http4s.implicits._
@@ -38,7 +33,7 @@ object AppServer {
 
   def createServer[F[
       _
-  ]: Async: Log4CatsLogger: Parallel](): Resource[F, (Server, DapexMessageRouterAlgebra[F])] =
+  ]: Async: Log4CatsLogger: Parallel](): Resource[F, AppService[F]] =
     for {
       conf <- Resource.eval(parser.decodePathF[F, ServerConfiguration](path = "server"))
 
@@ -65,8 +60,8 @@ object AppServer {
 
       // RabbitMQ Consumer and Router
       aMQPChannel <- rmqClient.createConnectionChannel
-      rabbitConsumer = RabbitDapexMessageConsumer[F](rmqClient, aMQPChannel)
-      rabbitMessageRouter = DapexMessageRouter[F](rabbitConsumer.consumers, orchestrator)
+      rmqHandlers = new RMQMessageHandler[F](orchestrator)
+      rmqRouter: Vector[DapexMessageHandler[F]] = RMQMessageRouter.getMessageHandlers(rmqHandlers)
 
       // Health checkers
       checkers = NonEmptyList.of[HealthChecker[F]](SelfHealthCheck[F])
@@ -87,10 +82,11 @@ object AppServer {
         .withHost(httpHost.getOrElse(ipv4"0.0.0.0"))
         .withHttpApp(httpApp)
         .build
-    } yield (server, rabbitMessageRouter)
+    } yield AppService(server, rmqRouter, rmqClient, aMQPChannel)
+//
+//  def processRMQMessages[F[_]: Log: Log4CatsLogger: Temporal](
+//      appService: AppService[F]
+//  ): F[ExitCode] =
+//    DapexMQConsumer.consumeRMQ(appService.rmqClient, appService.rmqHandler.toList, appService.channel)
 
-  def processRMQMessages[F[_]: Log: Temporal](
-      dapexMessageRouter: DapexMessageRouterAlgebra[F]
-  ): F[ExitCode] =
-    ResilientStream.run(dapexMessageRouter.flow).as(ExitCode.Success)
 }

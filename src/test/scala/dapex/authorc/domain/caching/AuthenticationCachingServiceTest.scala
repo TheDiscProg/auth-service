@@ -1,11 +1,12 @@
 package dapex.authorc.domain.caching
 
 import cats.effect.IO
+import dapex.authorc.fixtures.DefaultFutureSetting
 import dapex.authorc.fixtures.TestObjects.CachingMaps
 import dapex.messaging.Method.{RESPONSE, SELECT}
-import dapex.messaging.{DapexMessage, DapexMessageFixture}
+import dapex.messaging.DapexMessage
+import dapex.test.DapexMessageFixture
 import org.scalatest.OptionValues
-import org.scalatest.concurrent.ScalaFutures
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
@@ -15,7 +16,7 @@ class AuthenticationCachingServiceTest
     extends AnyFlatSpec
     with Matchers
     with OptionValues
-    with ScalaFutures
+    with DefaultFutureSetting
     with DapexMessageFixture {
 
   import cats.effect.unsafe.implicits.global

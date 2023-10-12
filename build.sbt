@@ -1,14 +1,19 @@
-ThisBuild / organization := "Event Driven Architecture with DAPEX"
+ThisBuild / organization := "DAPEX"
 
-ThisBuild / version := "0.1.0"
+ThisBuild / version := "0.5.0"
 
 lazy val commonSettings = Seq(
   scalaVersion := "2.13.10",
   libraryDependencies ++= Dependencies.all,
+  resolvers += Resolver.githubPackages("TheDiscProg"),
+  githubOwner := "TheDiscProg",
+  githubRepository := "authentication-orchestrator",
   addCompilerPlugin(
     ("org.typelevel" %% "kind-projector" % "0.13.2").cross(CrossVersion.full)
   ),
-  addCompilerPlugin("com.olegpy" %% "better-monadic-for" % "0.3.1")
+  addCompilerPlugin("com.olegpy" %% "better-monadic-for" % "0.3.1"),
+  publishConfiguration := publishConfiguration.value.withOverwrite(true),
+  publishLocalConfiguration := publishLocalConfiguration.value.withOverwrite(true)
 )
 
 lazy val base = (project in file("base"))
@@ -47,7 +52,10 @@ lazy val guardrail = (project in file("guardrail"))
 
 lazy val root = (project in file("."))
   .enablePlugins(
-    ScalafmtPlugin
+    ScalafmtPlugin,
+    JavaAppPackaging,
+    UniversalPlugin,
+    DockerPlugin
   )
   .settings(
     commonSettings,
@@ -66,8 +74,15 @@ lazy val root = (project in file("."))
       ".*rabbitmq.*"
     ).mkString(";"),
     coverageFailOnMinimum := true,
-    coverageMinimumStmtTotal := 85,
-    coverageMinimumBranchTotal := 89
+    coverageMinimumStmtTotal := 86,
+    coverageMinimumBranchTotal := 90,
+    Compile / mainClass := Some("dapex.MainApp"),
+    Docker / packageName := "authentication-orchestrator",
+    Docker / dockerUsername := Some("ramindur"),
+    Docker / defaultLinuxInstallLocation := "/opt/authentication-orchestrator",
+    dockerBaseImage := "eclipse-temurin:17-jdk-jammy",
+    dockerExposedPorts ++= Seq(8003),
+    dockerExposedVolumes := Seq("/opt/docker/.logs", "/opt/docker/.keys")
   )
   .aggregate(base, guardrail)
   .dependsOn(Dependencies.dapexMessagingRepo % "test->test; compile->compile")

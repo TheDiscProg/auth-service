@@ -1,13 +1,12 @@
 package dapex.authorc.domain.security
 
-import dapex.authorc.fixtures.TestObjects
-import org.scalatest.concurrent.ScalaFutures
+import dapex.authorc.fixtures.{DefaultFutureSetting, TestObjects}
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
 import java.time.{LocalDateTime, ZoneOffset}
 
-class JwtSecurityTokenServiceTest extends AnyFlatSpec with Matchers with ScalaFutures {
+class JwtSecurityTokenServiceTest extends AnyFlatSpec with Matchers with DefaultFutureSetting {
 
   private val sut = JwtSecurityTokenService(TestObjects.config)
 
