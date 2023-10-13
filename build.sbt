@@ -1,6 +1,6 @@
 ThisBuild / organization := "DAPEX"
 
-ThisBuild / version := "0.5.0"
+ThisBuild / version := "0.5.1"
 
 lazy val commonSettings = Seq(
   scalaVersion := "2.13.10",
@@ -26,7 +26,6 @@ lazy val base = (project in file("base"))
       ".*.entities.*"
     ).mkString(";")
   )
-  .dependsOn(Dependencies.dapexMessagingRepo)
 
 lazy val guardrail = (project in file("guardrail"))
   .settings(
@@ -62,7 +61,6 @@ lazy val root = (project in file("."))
     name := "authentication-orchestrator",
     Compile / doc / sources := Seq.empty,
     scalacOptions ++= Scalac.options,
-    Compile / mainClass := Some("dapex.MainApp"),
     coverageExcludedPackages := Seq(
       "<empty>"
     ).mkString(";"),
