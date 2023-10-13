@@ -83,10 +83,5 @@ object AppServer {
         .withHttpApp(httpApp)
         .build
     } yield AppService(server, rmqRouter, rmqClient, aMQPChannel)
-//
-//  def processRMQMessages[F[_]: Log: Log4CatsLogger: Temporal](
-//      appService: AppService[F]
-//  ): F[ExitCode] =
-//    DapexMQConsumer.consumeRMQ(appService.rmqClient, appService.rmqHandler.toList, appService.channel)
 
 }

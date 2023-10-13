@@ -13,7 +13,6 @@ object MainApp extends IOApp {
       .use { implicit logger: Logger[IO] =>
         AppServer
           .createServer[IO]()
-          //.use(service => AppServer.processRMQMessages(service))
           .use(service =>
             DapexMQConsumer
               .consumeRMQ(service.rmqClient, service.rmqHandler.toList, service.channel)

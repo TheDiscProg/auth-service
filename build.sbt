@@ -1,6 +1,6 @@
 ThisBuild / organization := "DAPEX"
 
-ThisBuild / version := "0.5.1"
+ThisBuild / version := "0.5.2"
 
 lazy val commonSettings = Seq(
   scalaVersion := "2.13.10",
