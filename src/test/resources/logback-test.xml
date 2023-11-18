@@ -11,11 +11,11 @@
         </encoder>
     </appender>
 
-    <logger name="dapex" additivity="false" level="DEBUG">
+    <logger name="simex" additivity="false" level="INFO">
         <appender-ref ref="STDOUT"/>
     </logger>
 
-    <root level="DEBUG">
+    <root level="INFO">
         <appender-ref ref="STDOUT" />
     </root>
 </configuration>

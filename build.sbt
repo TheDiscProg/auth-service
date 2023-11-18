@@ -1,6 +1,8 @@
-ThisBuild / organization := "DAPEX"
+ThisBuild / organization := "simex"
 
-ThisBuild / version := "0.5.2"
+ThisBuild / version := "0.6.0"
+
+ThisBuild / versionScheme := Some("early-semver")
 
 lazy val commonSettings = Seq(
   scalaVersion := "2.13.10",
@@ -19,22 +21,23 @@ lazy val commonSettings = Seq(
 lazy val base = (project in file("base"))
   .settings(
     commonSettings,
-    name := "base",
+    name := "authentication-orchestrator-base",
     scalacOptions ++= Scalac.options,
     coverageExcludedPackages := Seq(
       "<empty>",
       ".*.entities.*"
-    ).mkString(";")
+    ).mkString(";"),
+    publish / skip := true
   )
 
 lazy val guardrail = (project in file("guardrail"))
   .settings(
     commonSettings,
-    name := "guardrail",
+    name := "authentication-orchestrator-guardrail",
     Compile / guardrailTasks := List(
       ScalaServer(
         file("swagger.yaml"),
-        pkg = "dapex.guardrail",
+        pkg = "simex.guardrail",
         framework = "http4s",
         tracing = false,
         imports = List(
@@ -42,6 +45,7 @@ lazy val guardrail = (project in file("guardrail"))
         )
       )
     ),
+    publish / skip := true,
     coverageExcludedPackages := Seq(
       "<empty>",
       ".*guardrail.*"
@@ -74,7 +78,7 @@ lazy val root = (project in file("."))
     coverageFailOnMinimum := true,
     coverageMinimumStmtTotal := 86,
     coverageMinimumBranchTotal := 90,
-    Compile / mainClass := Some("dapex.MainApp"),
+    Compile / mainClass := Some("simex.MainApp"),
     Docker / packageName := "authentication-orchestrator",
     Docker / dockerUsername := Some("ramindur"),
     Docker / defaultLinuxInstallLocation := "/opt/authentication-orchestrator",
@@ -83,9 +87,8 @@ lazy val root = (project in file("."))
     dockerExposedVolumes := Seq("/opt/docker/.logs", "/opt/docker/.keys")
   )
   .aggregate(base, guardrail)
-  .dependsOn(Dependencies.dapexMessagingRepo % "test->test; compile->compile")
   .dependsOn(base % "test->test; compile->compile")
   .dependsOn(guardrail % "test->test; compile->compile")
 
-addCommandAlias("clntst", ";clean;scalafmt;test:scalafmt;test;")
-addCommandAlias("cvrtst", ";clean;scalafmt;test:scalafmt;coverage;test;coverageReport;")
+addCommandAlias("cleanTest", ";clean;scalafmt;test:scalafmt;test;")
+addCommandAlias("cleanCoverage", ";clean;scalafmt;test:scalafmt;coverage;test;coverageReport;")
