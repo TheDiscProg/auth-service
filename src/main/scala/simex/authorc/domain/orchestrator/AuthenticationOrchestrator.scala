@@ -5,6 +5,8 @@ import cats.syntax.all._
 import org.typelevel.log4cats.Logger
 import shareprice.config.ServiceDefinition
 import shareprice.rabbitmq.SharepriceQueue
+import simex.authorc.domain.HashingIteration
+import simex.authorc.domain.registration.UserRegistrationServiceAlgebra
 import simex.caching.CachingServiceAlgebra
 import simex.messaging.{Datum, Endpoint, Method, Simex}
 import simex.rabbitmq.publisher.SimexMQPublisherAlgebra
@@ -26,17 +28,18 @@ class AuthenticationOrchestrator[F[_]: Monad: Logger](
     securityTokenService: SecurityTokenServiceAlgebra,
     requestCachingService: CachingServiceAlgebra[F],
     authTokenCachingService: CachingServiceAlgebra[F],
-    refreshTokenCachingService: CachingServiceAlgebra[F]
+    refreshTokenCachingService: CachingServiceAlgebra[F],
+    userRegistrationService: UserRegistrationServiceAlgebra[F]
 ) extends AuthenticationOrchestratorAlgebra[F] {
 
-  val HashingIteration = 1000
   private val RefreshTokenNotPresentedMessage = "No refresh token presented in request"
   private val RefreshTokenNotFoundMessage = "No matching refresh token found"
   private val UsernameNotFoundMessage = "No matching username found in data"
 
   override def handleSimexMessage(message: Simex): F[Unit] =
     Method.fromString(message.endpoint.method) match {
-      case Method.SELECT => handleAuthenticationOrRefreshTokenMessage(message)
+      case Method.SELECT => handleUserRequest(message)
+      case Method.INSERT => handleUserRegistration(message)
       case Method.RESPONSE => handleDatabaseResponse(message)
       case e =>
         handleUnsupportedCall(
@@ -45,7 +48,39 @@ class AuthenticationOrchestrator[F[_]: Monad: Logger](
         )
     }
 
+  private def handleUserRegistration(message: Simex): F[Unit] =
+    message.endpoint.entity match {
+      case Some(Simex.REGISTRATION_ENTITY) => userRegistrationService.register(message)
+      case e =>
+        handleUnsupportedCall(
+          message,
+          UnsupportedMethodCallError(s"AuthOrc: this does not support method INSERT with [$e]")
+        )
+    }
+
   private def handleDatabaseResponse(message: Simex): F[Unit] =
+    message.endpoint.entity match {
+      case Some(entity) =>
+        entity match {
+          case Simex.AUTHENTICATION_ENTITY => handleDatabaseResponseForAuthentication(message)
+          case Simex.REGISTRATION_ENTITY => handleDatabaseResponseForRegistration(message)
+          case e =>
+            handleUnsupportedCall(
+              message,
+              UnsupportedEntityError(s"Unsupported entity: $e")
+            )
+        }
+      case None =>
+        handleUnsupportedCall(
+          message,
+          UnsupportedEntityError("No entity defined in message from database service")
+        )
+    }
+
+  private def handleDatabaseResponseForRegistration(message: Simex): F[Unit] =
+    userRegistrationService.handleDatabaseResponse(message)
+
+  private def handleDatabaseResponseForAuthentication(message: Simex): F[Unit] =
     message.getUsername.fold(
       handleUnsupportedCall(
         message,
@@ -74,7 +109,7 @@ class AuthenticationOrchestrator[F[_]: Monad: Logger](
       )
     } yield ()
 
-  private def handleAuthenticationOrRefreshTokenMessage(message: Simex): F[Unit] =
+  private def handleUserRequest(message: Simex): F[Unit] =
     message.endpoint.entity match {
       case Some(entity) =>
         entity.toLowerCase match {
@@ -143,7 +178,7 @@ class AuthenticationOrchestrator[F[_]: Monad: Logger](
       refreshToken: String,
       databaseResponse: Simex,
       originalRequest: Simex,
-      isRefreshTokenRequest: Boolean = true
+      isRefreshTokenRequest: Boolean
   ): F[Unit] =
     for {
       _ <- authTokenCachingService.saveMessage(authToken, databaseResponse)
@@ -252,13 +287,15 @@ object AuthenticationOrchestrator {
       securityTokenService: SecurityTokenServiceAlgebra,
       requestCachingService: CachingServiceAlgebra[F],
       authTokenCachingService: CachingServiceAlgebra[F],
-      refreshTokenCachingService: CachingServiceAlgebra[F]
+      refreshTokenCachingService: CachingServiceAlgebra[F],
+      userRegistrationService: UserRegistrationServiceAlgebra[F]
   ): AuthenticationOrchestrator[F] = new AuthenticationOrchestrator[F](
     rmqPublisher,
     hashingService,
     securityTokenService,
     requestCachingService,
     authTokenCachingService,
-    refreshTokenCachingService
+    refreshTokenCachingService,
+    userRegistrationService
   )
 }

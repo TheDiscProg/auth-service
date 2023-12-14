@@ -1,13 +1,19 @@
 # SIMEX Authentication Orchestrator
 An authentication service for Event Driven service using SIMEX messaging API.
 
+## SIMEX Entities
+1. `Simex.AUTHENTICATION_ENTITY` ("authentication"):- For user authentication
+2. `Simex.REFRESH_TOKEN_ENTITY` ("refresh"):- For security token renewal
+3. `Simex.REGISTRATION_ENTITY` ("registration"):- For new customer registration
+
 ## Overview
 It receives a SIMEX message on RabbitMQ and does the following:
 
 1. If the request method is `SELECT`, then this is a request for either authentication, or for a renewal of authorization token.
-2. If the request method is `RESPONSE`, then this is a response from a database service returning the user principal.
+2. If the request method is `INSERT`, then this is for a user registration
+2. If the request method is `RESPONSE`, then this is either a response for user authentication or registration.
 
-The results of both are stored in a caching system, such as Hazelcast by:
+The results for authentication or token renewal are stored in a caching system, such as Hazelcast by:
 1. Authorization JWT Token: Stores the User Principal, i.e. the authenticated user information.
 2. Refresh JWT Token: Stores the User Principal, i.e. the authenticated user information.
 
@@ -136,7 +142,6 @@ The database service will search for the customer and return a response:
 ```
 If no matching customer is found, the `data` array will be empty. Notice the `endpoint.method` is `response`, as this is a
 response to a request. There is no need for any further information, such as `Not Found` as an empty array implies it.
-
 
 ### Step 4 - Validates the customer and sends the response to Collection Point
 It will check the password for matching and sends the response to the collection point service:
@@ -287,6 +292,10 @@ If the refresh token was not found, then it will send the following message:
 }
 ```
 
+## User Registration
+The user registration is handled by `UserRegistrationService`.
+After basic checks, it sends the request off to the database service via Kafka.
+The response is simply forwarded to the CollectionPoint Service.
 
 ## Dockerising and Running Docker Image
 This project has sbt-native-packager enabled for Docker images. Use:

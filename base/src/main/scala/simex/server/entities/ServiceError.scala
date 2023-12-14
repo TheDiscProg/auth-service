@@ -18,5 +18,7 @@ case object ServiceError extends Enum[ServiceError] {
 
   case class RefreshTokenError(message: String) extends ServiceError
 
+  case class InsufficientData(message: String) extends ServiceError
+
   override def values: IndexedSeq[ServiceError] = findValues
 }

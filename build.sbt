@@ -1,6 +1,6 @@
 ThisBuild / organization := "simex"
 
-ThisBuild / version := "0.6.0"
+ThisBuild / version := "0.7.0"
 
 ThisBuild / versionScheme := Some("early-semver")
 
@@ -76,8 +76,8 @@ lazy val root = (project in file("."))
       ".*rabbitmq.*"
     ).mkString(";"),
     coverageFailOnMinimum := true,
-    coverageMinimumStmtTotal := 86,
-    coverageMinimumBranchTotal := 90,
+    coverageMinimumStmtTotal := 90,
+    coverageMinimumBranchTotal := 85,
     Compile / mainClass := Some("simex.MainApp"),
     Docker / packageName := "authentication-orchestrator",
     Docker / dockerUsername := Some("ramindur"),

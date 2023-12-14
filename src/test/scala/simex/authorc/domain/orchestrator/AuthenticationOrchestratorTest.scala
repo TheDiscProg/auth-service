@@ -12,6 +12,8 @@ import org.typelevel.log4cats.SelfAwareStructuredLogger
 import org.typelevel.log4cats.slf4j.Slf4jLogger
 import shareprice.config.ServiceDefinition
 import shareprice.rabbitmq.SharepriceQueue
+import simex.authorc.domain.HashingIteration
+import simex.authorc.domain.registration.UserRegistrationServiceAlgebra
 import simex.authorc.fixtures.DefaultFutureSetting
 import simex.caching.CachingServiceAlgebra
 import simex.messaging._
@@ -164,7 +166,7 @@ class AuthenticationOrchestratorTest
   }
 
   it should "handle a not found user in response from user database" in {
-    val dbResponse = getMessage(Method.RESPONSE, Some("user"), Vector())
+    val dbResponse = getMessage(Method.RESPONSE, Some("authentication"), Vector())
 
     val result = sut.handleSimexMessage(dbResponse).unsafeToFuture()
 
@@ -205,11 +207,10 @@ class AuthenticationOrchestratorTest
     setUpRequestCache()
     val password = Datum(
       "password",
-      hashingService.generateHash("password1234", "tester@test.com".getBytes, sut.HashingIteration),
+      hashingService.generateHash("password1234", "tester@test.com".getBytes, HashingIteration),
       None
     )
     val dbResponse = user.copy(data = user.data.filter(_.field != "password") :+ password)
-    println(s"dbRespone: $dbResponse")
     val result = sut.handleSimexMessage(dbResponse).unsafeToFuture()
 
     whenReady(result) { r =>
@@ -220,6 +221,41 @@ class AuthenticationOrchestratorTest
       val messageSentToCollectionPoint = cache.getIfPresent(rmqMessageSentKey)
       messageSentToCollectionPoint.isDefined shouldBe true
       messageSentToCollectionPoint.value.data.size shouldBe 8
+    }
+  }
+
+  it should "handle when user registers" in {
+    setUpRequestCache()
+    val userRegistration = user.copy(endpoint =
+      user.endpoint.copy(method = Method.INSERT.value, entity = Some(Simex.REGISTRATION_ENTITY))
+    )
+
+    val result = sut.handleSimexMessage(userRegistration).unsafeToFuture()
+
+    whenReady(result) { r =>
+      r shouldBe ()
+      val messageSent = cache.getIfPresent(
+        s"UserRegistration-${userRegistration.client.clientId}-${userRegistration.client.requestId}"
+      )
+      messageSent.isDefined shouldBe true
+      messageSent.value shouldBe userRegistration
+    }
+  }
+
+  it should "messages that are not user registration when INSERT is defined" in {
+    setUpRequestCache()
+    val userRegistration = user.copy(endpoint =
+      user.endpoint.copy(method = Method.INSERT.value, entity = Some(Simex.AUTHENTICATION_ENTITY))
+    )
+
+    val result = sut.handleSimexMessage(userRegistration).unsafeToFuture()
+
+    whenReady(result) { r =>
+      r shouldBe ()
+      val messageSent = cache.getIfPresent(
+        s"UserRegistration-${userRegistration.client.clientId}-${userRegistration.client.requestId}"
+      )
+      messageSent.isDefined shouldBe false
     }
   }
 
@@ -255,13 +291,26 @@ class AuthenticationOrchestratorTest
 
     val refreshTokenCachingService = new CachingService[IO]("refresh")
 
+    val userRegistrationService = new UserRegistrationServiceAlgebra[IO] {
+      override def register(message: Simex): IO[Unit] =
+        cache
+          .put(s"UserRegistration-${message.client.clientId}-${message.client.requestId}", message)
+          .pure[IO]
+
+      override def handleDatabaseResponse(message: Simex): IO[Unit] =
+        cache
+          .put(s"UserRegistration-${message.client.clientId}-${message.client.requestId}", message)
+          .pure[IO]
+    }
+
     AuthenticationOrchestrator[IO](
       rmqPublisher,
       hashingService,
       securityTokenService,
       requestCachingService,
       authTokenCachingService,
-      refreshTokenCachingService
+      refreshTokenCachingService,
+      userRegistrationService
     )
 
   }
@@ -272,7 +321,7 @@ class AuthenticationOrchestratorTest
     val authRequest = authenticationRequest.replaceDatum(
       Datum(
         "password",
-        hashingService.generateHash(password, username.getBytes, sut.HashingIteration),
+        hashingService.generateHash(password, username.getBytes, HashingIteration),
         None
       )
     )
@@ -284,7 +333,7 @@ class AuthenticationOrchestratorTest
     endpoint = Endpoint(
       resource = ServiceDefinition.AuthenticationService,
       method = Method.RESPONSE.value,
-      entity = Some("user")
+      entity = Some("authentication")
     ),
     client = Client(
       clientId = ServiceDefinition.DatabaseROService,
@@ -296,7 +345,8 @@ class AuthenticationOrchestratorTest
       clientId = "client1",
       requestId = "request1",
       sourceEndpoint = "app.login",
-      originalToken = "originaltoken"
+      originalToken = "originaltoken",
+      security = "1"
     ),
     data = Vector(
       Datum("userId", "1", None),

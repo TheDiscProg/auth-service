@@ -13,11 +13,16 @@ import org.http4s.server.middleware.Logger
 import org.typelevel.log4cats.{Logger => Log4CatsLogger}
 import shareprice.caching.CachingMap
 import shareprice.config.ServerConfiguration
+import shareprice.kafka.SharepriceTopic
 import simex.authorc.domain.orchestrator.AuthenticationOrchestrator
+import simex.authorc.domain.registration.UserRegistrationService
 import simex.authorc.domain.rmqconsumer.{RMQMessageHandler, RMQMessageRouter}
 import simex.caching.CachingService
 import simex.caching.config.HazelcastConfig
 import simex.guardrail.healthcheck.HealthcheckResource
+import simex.kafka.KafkaConfigurator
+import simex.kafka.config.KafkaConfig
+import simex.kafka.producer.SimexKafkaProducer
 import simex.rabbitmq.Rabbit
 import simex.rabbitmq.consumer.SimexMessageHandler
 import simex.rabbitmq.publisher.SimexMQPublisher
@@ -73,6 +78,24 @@ object AppServer {
       hashingService = HashingService()
       tokenService = SecurityTokenService(conf.tokenKey)
 
+      // Kafka create topics etc
+      kafkaConfig = conf.kafka match {
+        case Some(config) => config
+        case None =>
+          KafkaConfig(
+            bootstrapServer = "localhost",
+            port = 9092,
+            group = "shareprice"
+          )
+      }
+      _ <- Resource.eval(
+        KafkaConfigurator.createTopicIfNotExists(SharepriceTopic.DB_WRITE, kafkaConfig)
+      )
+      kafkaProducer = SimexKafkaProducer[F](kafkaConfig)
+
+      // Registration Service
+      userRegistrationService = UserRegistrationService(rmqPublisher, kafkaProducer, hashingService)
+
       // Orchestrator
       orchestrator = AuthenticationOrchestrator[F](
         rmqPublisher,
@@ -80,7 +103,8 @@ object AppServer {
         tokenService,
         requestCachingService,
         authTokenCachingService,
-        refreshTokenCachingService
+        refreshTokenCachingService,
+        userRegistrationService
       )
 
       // RabbitMQ Consumer and Router
