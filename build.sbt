@@ -1,6 +1,6 @@
 ThisBuild / organization := "simex"
 
-ThisBuild / version := "0.7.0"
+ThisBuild / version := "0.7.1"
 
 ThisBuild / versionScheme := Some("early-semver")
 
