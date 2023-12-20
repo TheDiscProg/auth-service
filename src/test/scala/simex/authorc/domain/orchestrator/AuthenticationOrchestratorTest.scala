@@ -346,7 +346,8 @@ class AuthenticationOrchestratorTest
       requestId = "request1",
       sourceEndpoint = "app.login",
       originalToken = "originaltoken",
-      security = "1"
+      security = "1",
+      messageTTL = Some(255)
     ),
     data = Vector(
       Datum("userId", "1", None),

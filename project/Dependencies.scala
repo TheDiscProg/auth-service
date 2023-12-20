@@ -3,7 +3,7 @@ import sbt._
 object Dependencies {
 
   lazy val all = Seq(
-    "Shareprice" %% "shareprice-config" % "0.9.4",
+    "Shareprice" %% "shareprice-config" % "0.10.0",
     "simex" %% "simex-messaging" % "0.7.4",
     "org.http4s" %% "http4s-dsl" % "0.23.18",
     "org.http4s" %% "http4s-ember-server" % "0.23.18",

@@ -1,6 +1,6 @@
 ThisBuild / organization := "simex"
 
-ThisBuild / version := "0.7.1"
+ThisBuild / version := "0.8.0"
 
 ThisBuild / versionScheme := Some("early-semver")
 
@@ -83,7 +83,7 @@ lazy val root = (project in file("."))
     Docker / dockerUsername := Some("ramindur"),
     Docker / defaultLinuxInstallLocation := "/opt/authentication-orchestrator",
     dockerBaseImage := "eclipse-temurin:17-jdk-jammy",
-    dockerExposedPorts ++= Seq(8003),
+    dockerExposedPorts ++= Seq(8280),
     dockerExposedVolumes := Seq("/opt/docker/.logs", "/opt/docker/.keys")
   )
   .aggregate(base, guardrail)
